@@ -7,7 +7,7 @@ TOKEN = os.getenv("BOT_TOKEN")
 
 DATA_FILE = "invites.json"
 
-# Load data
+# Load invite data
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
         invites = json.load(f)
@@ -18,7 +18,7 @@ def save():
     with open(DATA_FILE, "w") as f:
         json.dump(invites, f)
 
-# START
+# START COMMAND
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user = update.effective_user
@@ -34,9 +34,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             invites[inviter_id] += 1
             save()
 
-    await update.message.reply_text(
-        "👋 Welcome!\nUse /help to see commands."
-    )
+    text = """
+👋 Welcome to Invite Bot
+
+Commands:
+
+/invite - Get your invite link
+/myinvites - Check your invites
+/top - Top inviters
+/help - All commands
+"""
+
+    await update.message.reply_text(text)
 
 # HELP
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -45,8 +54,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 🤖 Bot Commands
 
 /start - Start bot
-/invite - Get your invite link
-/myinvites - Check your invites
+/invite - Get invite link
+/myinvites - Your invite count
 /top - Top inviters
 /help - Show commands
 """
@@ -57,9 +66,9 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
-    bot_username = context.bot.username
+    bot = await context.bot.get_me()
 
-    link = f"https://t.me/{bot_username}?start={user_id}"
+    link = f"https://t.me/{bot.username}?start={user_id}"
 
     await update.message.reply_text(
         f"🔗 Your Invite Link:\n{link}"
@@ -76,7 +85,7 @@ async def myinvites(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🎯 Your total invites: {count}"
     )
 
-# TOP
+# TOP INVITERS
 async def top(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not invites:
@@ -92,7 +101,7 @@ async def top(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text)
 
-# BOT START
+# START BOT
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))

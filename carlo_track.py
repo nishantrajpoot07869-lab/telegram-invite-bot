@@ -1,13 +1,12 @@
-from telegram import Update
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 import json
 import os
+from telegram import Update
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
 TOKEN = os.getenv("BOT_TOKEN")
 
 DATA_FILE = "invites.json"
 
-# Load invite data
 if os.path.exists(DATA_FILE):
     with open(DATA_FILE, "r") as f:
         invites = json.load(f)
@@ -18,98 +17,36 @@ def save():
     with open(DATA_FILE, "w") as f:
         json.dump(invites, f)
 
-# START COMMAND
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("👋 Invite Counter Bot Ready!")
 
-    user = update.effective_user
-
-    if context.args:
-        inviter_id = context.args[0]
-
-        if inviter_id != str(user.id):
-
-            if inviter_id not in invites:
-                invites[inviter_id] = 0
-
-            invites[inviter_id] += 1
-            save()
-
-    text = """
-👋 Welcome to Invite Bot
-
-Commands:
-
-/invite - Get your invite link
-/myinvites - Check your invites
-/top - Top inviters
-/help - All commands
-"""
-
-    await update.message.reply_text(text)
-
-# HELP
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    text = """
-🤖 Bot Commands
-
-/start - Start bot
-/invite - Get invite link
-/myinvites - Your invite count
-/top - Top inviters
-/help - Show commands
-"""
-
-    await update.message.reply_text(text)
-
-# INVITE LINK
-async def invite(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    user_id = update.effective_user.id
-    bot = await context.bot.get_me()
-
-    link = f"https://t.me/{bot.username}?start={user_id}"
-
-    await update.message.reply_text(
-        f"🔗 Your Invite Link:\n{link}"
-    )
-
-# MY INVITES
-async def myinvites(update: Update, context: ContextTypes.DEFAULT_TYPE):
-
-    user_id = str(update.effective_user.id)
-
+async def invites_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = str(update.message.from_user.id)
     count = invites.get(user_id, 0)
 
-    await update.message.reply_text(
-        f"🎯 Your total invites: {count}"
-    )
+    await update.message.reply_text(f"📊 Tumhare invites: {count}")
 
-# TOP INVITERS
-async def top(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    inviter = update.message.from_user
 
-    if not invites:
-        await update.message.reply_text("No invites yet.")
-        return
+    for member in update.message.new_chat_members:
+        user_id = str(inviter.id)
 
-    sorted_users = sorted(invites.items(), key=lambda x: x[1], reverse=True)
+        if user_id not in invites:
+            invites[user_id] = 0
 
-    text = "🏆 Top Inviters\n\n"
+        invites[user_id] += 1
+        save()
 
-    for i, (user, count) in enumerate(sorted_users[:10], start=1):
-        text += f"{i}. User {user} - {count} invites\n"
+        await update.message.reply_text(
+            f"🎉 {inviter.first_name} ne {member.first_name} ko add kiya!\n"
+            f"Total invites: {invites[user_id]}"
+        )
 
-    await update.message.reply_text(text)
-
-# START BOT
 app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("help", help_command))
-app.add_handler(CommandHandler("invite", invite))
-app.add_handler(CommandHandler("myinvites", myinvites))
-app.add_handler(CommandHandler("top", top))
-
-print("Bot Started...")
+app.add_handler(CommandHandler("invites", invites_cmd))
+app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, new_member))
 
 app.run_polling()
